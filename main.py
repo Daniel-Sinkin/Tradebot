@@ -2,7 +2,9 @@ import concurrent.futures
 import datetime as dt
 import os
 import time
+from typing import Optional, cast
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import vectorbt as vbt
@@ -22,18 +24,28 @@ def build_candle(
 ) -> pd.DataFrame:
     resampled = prices.resample(timeframe)
     candles = resampled.ohlc()
-    candles["volume"] = 20.0
+    candles["volume"] = 1.0
     candles.columns = ["Open", "High", "Low", "Close", "Volume"]
     return candles
 
 
 def get_symbols() -> list[str]:
-    return [f for f in os.listdir("data") if os.path.isfile(os.path.join("data", f))]
+    return [
+        f.removesuffix(".pkl").removeprefix("ticks_")
+        for f in os.listdir("data")
+        if os.path.isfile(os.path.join("data", f))
+    ]
 
 
 # Function to get tick data
 def get_ticks(symbol: str) -> pd.DataFrame:
-    return pd.read_pickle(f"data/ticks_{symbol}.pkl")
+    data = cast(pd.DataFrame, pd.read_pickle(f"data/ticks_{symbol}.pkl"))
+    idx0 = np.searchsorted(
+        data.index, dt.datetime(2023, 10, 29, 21, 10, tzinfo=dt.timezone.utc)
+    )
+    data = data.iloc[idx0:]
+
+    return data
 
 
 SYMBOLS = get_symbols()
