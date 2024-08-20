@@ -187,3 +187,51 @@ def run_optimization():
     print("Starting optimization runs.")
     run_optimizations_in_parallel(candles_dict, lookback_windows, num_symbols, maxiter)
 
+
+if __name__ == "__main__":
+    print("Getting ticks")
+    ticks = {symbol: get_ticks(symbol) for symbol in SYMBOLS}
+
+    print("Building Candles")
+    candles_dict = {
+        symbol: build_candle((ticks_["ask"] + ticks_["bid"]) / 2.0, "5min")
+        for symbol, ticks_ in ticks.items()
+    }
+
+    ticks.clear()
+    del ticks
+
+    for symbol in candles_dict:
+        candles_dict[symbol]["Deltas"] = candles_dict[symbol]["Close"].diff() / (
+            get_symbol_specs(symbol)["tick_size"]
+            * get_symbol_specs(symbol)["stops_level"]
+        )
+        candles_dict[symbol] = candles_dict[symbol].dropna()
+
+    best_results = {
+        6: [-0.47911284, -0.35184976, 0.17710572, 0.14437398, 0.63111678],
+        7: [0.84060887, 0.86597487, -0.40992346, -0.80317143, -0.83055648],
+        8: [-0.05358088, -0.37077795, -0.89476596, 0.76351753, 0.60499869],
+        9: [0.77574997, 0.05906703, 0.25160068, -0.22118716, -0.98607829],
+        10: [-0.77792979, 0.52616337, 0.46599738, -0.08174683, -0.80169335],
+        11: [0.19384411, 0.07641893, 0.55242617, -0.19105421, -0.63934042],
+        12: [0.28911154, -0.63438929, 0.84649763, 0.4482487, -0.9882274],
+    }
+
+    stats = {}
+    for i, (lb, w) in enumerate(best_results.items()):
+        print(i)
+        stats[lb] = evaluate_portfolio(candles_dict, weights=w, lookback_window=lb)
+
+    returns = []
+    for lb, stats_ in stats.items():
+        returns.append(stats_["End Value"])
+
+    ret = max(returns)
+    annualization_factor = (
+        dt.timedelta(days=365).total_seconds() / stats_["Period"].total_seconds()
+    )
+    print(f"Maximal Achieved Results {ret - 100:.2f}%.")
+    print(
+        f"Maximal Achieved Results (annual) {(ret - 100) * annualization_factor:.2f}%."
+    )
