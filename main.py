@@ -132,15 +132,18 @@ def optimize_with_simulated_annealing(
     t0 = time.perf_counter()
 
     def objective(weights):
-        return -evaluate_portfolio(
-            candles_dict, np.array(weights), lookback_window
-        ).stats()["Sharpe Ratio"]
+        return -(
+            evaluate_portfolio(
+                candles_dict, np.array(weights), lookback_window
+            ).stats()["End Value"]
+            - 100
+        )
 
     def callback(x, f, context):
         nonlocal iteration
         iteration += 1
         print(
-            f"{lookback_window:2} - Iteration {iteration}/{maxiter}, Current Sharpe Ratio: {-f:.4f}. Total runtime {time.perf_counter() - t0:.2f} seconds."
+            f"{lookback_window:2} - Iteration {iteration}/{maxiter}, Current Final Profit: {-f:.2f}%. Total runtime {time.perf_counter() - t0:.2f} seconds."
         )
 
     result = dual_annealing(
