@@ -6,6 +6,13 @@ import numpy as np
 import pandas as pd
 
 
+def get_symbol_specs(symbol: str) -> float:
+    if symbol[-3:] == "JPY":
+        return 0.1
+    else:
+        return 1.0
+
+
 # Function to build candles
 def build_candle(
     prices: pd.Series, timeframe: str, dropna: bool = True
