@@ -110,8 +110,11 @@ def slice_sorted(  # pylint: disable=too-many-arguments
         - `slice_sorted(slice_sorted(df, "key", right=t1), left=t0)`
         - `slice_sorted(df, "key", left=t0, right=t1)`
     """
+    if df is None or df.columns is None:
+        raise TypeError("df is None or its columns are None.")
+
     if key not in df.columns:
-        raise ValueError(f"Column {key} not found in DataFrame.")
+        raise KeyError(f"Column {key} not found in DataFrame.")
 
     if left is not None and right is not None and left > right:
         raise ValueError("Left boundary is greater than right boundary.")
