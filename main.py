@@ -1,3 +1,4 @@
+import concurrent.futures
 import datetime as dt
 import os
 import time
@@ -43,7 +44,7 @@ def evaluate_portfolio(
     weights: np.ndarray,
     lookback_window: int = 6,
     base_volume: float = 1.0,
-) -> float:
+) -> vbt.Portfolio:
     SYMBOLS = list(candles_dict.keys())
 
     weights = np.array(weights)
@@ -119,9 +120,9 @@ def optimize_with_simulated_annealing(
     t0 = time.perf_counter()
 
     def objective(weights):
-        return -evaluate_portfolio(candles_dict, np.array(weights), lookback_window)[
-            "Sharpe Ratio"
-        ]
+        return -evaluate_portfolio(
+            candles_dict, np.array(weights), lookback_window
+        ).stats()["Sharpe Ratio"]
 
     def callback(x, f, context):
         nonlocal iteration
@@ -158,4 +159,31 @@ def run_optimizations_in_parallel(
             print(
                 f"Lookback Window {lookback_window}: Best Sharpe Ratio: {best_sharpe:.4f} with weights: {best_weights}"
             )
+
+
+def run_optimization():
+    print("Getting ticks")
+    ticks = {symbol: get_ticks(symbol) for symbol in SYMBOLS}
+
+    print("Building Candles")
+    candles_dict = {
+        symbol: build_candle((ticks_["ask"] + ticks_["bid"]) / 2.0, "5min")
+        for symbol, ticks_ in ticks.items()
+    }
+
+    ticks.clear()
+    del ticks
+
+    for symbol in candles_dict:
+        candles_dict[symbol]["Deltas"] = (
+            0.2 * candles_dict[symbol]["Close"].diff() * get_symbol_specs(symbol)
+        )
+        candles_dict[symbol] = candles_dict[symbol].dropna()
+
+    num_symbols = len(SYMBOLS)
+
+    lookback_windows = [6, 7, 8, 9, 10, 11, 12]
+    maxiter = 25
+    print("Starting optimization runs.")
+    run_optimizations_in_parallel(candles_dict, lookback_windows, num_symbols, maxiter)
 
