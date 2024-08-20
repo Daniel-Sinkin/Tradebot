@@ -250,21 +250,65 @@ def main():
         11: [-0.42842743, -0.84678352, 0.20057753, -0.02365986, 0.94337179],
         12: [-0.2708226, 0.7040356, 0.34625536, -0.37657696, -0.25549361],
     }
+    lbs = list(best_results.keys())
 
-    stats = {}
+    portfolio = {}
     for i, (lb, w) in enumerate(best_results.items()):
         print(i)
-        stats[lb] = evaluate_portfolio(candles_dict, weights=w, lookback_window=lb)
+        portfolio[lb] = evaluate_portfolio(candles_dict, weights=w, lookback_window=lb)
 
     returns = []
-    for lb, stats_ in stats.items():
-        returns.append(stats_["End Value"])
+    for lb, portfolio_ in portfolio.items():
+        returns.append(portfolio_.stats()["End Value"])
 
     ret = max(returns)
-    annualization_factor = (
-        dt.timedelta(days=365).total_seconds() / stats_["Period"].total_seconds()
+    for i in range(len(returns)):
+        argmax = i
+        if np.isclose(ret, returns[i]):
+            break
+
+    argmax_lb = lbs[argmax]
+    argmax_weight = best_results[argmax_lb]
+
+    print(f"Best lb = {argmax_lb}, best_weights = {argmax_weight}")
+    annualization_factor = dt.timedelta(days=365).total_seconds() / (
+        (portfolio_.stats()["End"] - portfolio_.stats()["Start"]).total_seconds()
     )
     print(f"Maximal Achieved Results {ret - 100:.2f}%.")
     print(
         f"Maximal Achieved Results (annual) {(ret - 100) * annualization_factor:.2f}%."
     )
+
+    eps = 0.01
+    print(f"Sampling neighborhood with {eps=}.")
+    end_vals = []
+    dists = []
+    for i in range(250):
+        sample = sample_weight_neighborhood(argmax_weight, eps)
+        portfolio_ = evaluate_portfolio(
+            candles_dict, weights=sample, lookback_window=argmax_lb
+        )
+        dist = np.linalg.norm(sample - argmax_weight, 2)
+        dists.append(dist)
+        print(f"{i + 1}. {sample=} ({dist=:.4f})")
+        end_val = portfolio_.stats()["End Value"] - 100
+        end_vals.append(end_val)
+        end_val_annual = end_val * annualization_factor
+        print(f"{end_val=:.2f}%, {end_val_annual=:.2f}%")
+
+    print("\nQuantiles:")
+    print(np.quantile(np.array(end_vals), [0, 0.25, 0.5, 0.75, 1.0]))
+
+    plt.scatter(dists, end_vals)
+    plt.scatter(0, ret - 100)
+
+    plt.title("Performance of params around optimized weights.")
+
+    plt.xlabel("Distance to determined point")
+    plt.ylabel("Relative returns")
+
+    plt.show()
+
+
+if __name__ == "__main__":
+    main()
