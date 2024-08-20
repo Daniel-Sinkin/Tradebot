@@ -172,7 +172,7 @@ def run_optimizations_in_parallel(
         for future in concurrent.futures.as_completed(futures):
             lookback_window, best_sharpe, best_weights = future.result()
             print(
-                f"Lookback Window {lookback_window}: Best Sharpe Ratio: {best_sharpe:.4f} with weights: {best_weights}"
+                f"Lookback Window {lookback_window}: Best Total Returns: {best_sharpe:.4f} with weights: {best_weights}"
             )
 
 
@@ -203,7 +203,24 @@ def run_optimization():
     run_optimizations_in_parallel(candles_dict, lookback_windows, num_symbols, maxiter)
 
 
-if __name__ == "__main__":
+def sample_weight_neighborhood(
+    weight: np.ndarray, eps: float, seed: Optional[int] = None
+) -> np.ndarray:
+    """
+    Samples weights around an epsilon ball to validate how stable the procedure is.
+
+    This is not a uniform distribution in the ball, prefering points around the center, but that is good enough for us.
+    """
+    assert eps > 0, "radius has to be postive"
+    _rng = np.random.default_rng(seed)
+    radius = eps - _rng.uniform(0, eps)
+
+    sample = _rng.normal(0, 1.0, len(weight))
+    sample /= np.linalg.norm(sample, 2)
+    sample *= radius
+
+    return weight + sample
+
     print("Getting ticks")
     ticks = {symbol: get_ticks(symbol) for symbol in SYMBOLS}
 
