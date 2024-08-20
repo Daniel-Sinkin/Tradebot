@@ -10,23 +10,14 @@ import pandas as pd
 import vectorbt as vbt
 from scipy.optimize import dual_annealing
 
+from src.util import build_candle
+
 
 def get_symbol_specs(symbol: str) -> float:
     if symbol[-3:] == "JPY":
         return 0.1
     else:
         return 1.0
-
-
-# Function to build candles
-def build_candle(
-    prices: pd.Series, timeframe: str, dropna: bool = True
-) -> pd.DataFrame:
-    resampled = prices.resample(timeframe)
-    candles = resampled.ohlc()
-    candles["volume"] = 1.0
-    candles.columns = ["Open", "High", "Low", "Close", "Volume"]
-    return candles
 
 
 def get_symbols() -> list[str]:
