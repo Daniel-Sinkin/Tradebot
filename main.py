@@ -4,6 +4,7 @@ import time
 
 import numpy as np
 import pandas as pd
+import vectorbt as vbt
 
 
 def get_symbol_specs(symbol: str) -> float:
