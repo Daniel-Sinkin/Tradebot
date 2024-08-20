@@ -30,7 +30,7 @@ class Optimizer(ABC):
         self.maxiter = maxiter
 
     @abstractmethod
-    def optimize(self, lookback_window):
+    def optimize(self, lookback_window) -> None:
         """
         Optimize the trading strategy.
 
@@ -44,7 +44,9 @@ class Optimizer(ABC):
         """
         pass
 
-    def run_optimizations_in_parallel(self, lookback_windows):
+    def run_optimizations_in_parallel(
+        self, lookback_windows
+    ) -> list[tuple[int, float, np.ndarray]]:
         """
         Run multiple optimizations in parallel over different lookback windows.
 
@@ -69,7 +71,7 @@ class Optimizer(ABC):
 
 
 class SimulatedAnnealingOptimizer(Optimizer):
-    def optimize(self, lookback_window):
+    def optimize(self, lookback_window) -> tuple[int, float, np.ndarray]:
         """
         Optimize the trading strategy using simulated annealing.
 
@@ -110,9 +112,9 @@ class SimulatedAnnealingOptimizer(Optimizer):
         return lookback_window, best_sharpe, best_weights
 
 
-def run_optimization():
+def run_optimization(symbols: list[str]):
     print("Getting ticks")
-    ticks = {symbol: get_ticks(symbol) for symbol in SYMBOLS}
+    ticks = {symbol: get_ticks(symbol) for symbol in symbols}
 
     print("Building Candles")
     candles_dict = {
@@ -125,11 +127,13 @@ def run_optimization():
 
     for symbol in candles_dict:
         candles_dict[symbol]["Deltas"] = (
-            0.2 * candles_dict[symbol]["Close"].diff() * get_symbol_specs(symbol)
+            0.2
+            * candles_dict[symbol]["Close"].diff()
+            * (0.1 if "JPK" == symbol[-3:] else 1.0)
         )
         candles_dict[symbol] = candles_dict[symbol].dropna()
 
-    num_symbols = len(SYMBOLS)
+    num_symbols = len(symbols)
 
     lookback_windows = [6, 7, 8, 9, 10, 11, 12]
     maxiter = 25

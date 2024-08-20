@@ -1,19 +1,12 @@
-import concurrent.futures
 import datetime as dt
-import os
-import time
-from typing import cast
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-import vectorbt as vbt
-from scipy.optimize import dual_annealing
 
 from src.util import build_candle, sample_eps_ball
 
 
-def main():
+def main() -> None:
     print("Getting ticks")
     ticks = {symbol: get_ticks(symbol) for symbol in SYMBOLS}
 
