@@ -2,7 +2,7 @@ import concurrent.futures
 import datetime as dt
 import os
 import time
-from typing import Optional, cast
+from typing import cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,7 +10,7 @@ import pandas as pd
 import vectorbt as vbt
 from scipy.optimize import dual_annealing
 
-from src.util import build_candle
+from src.util import build_candle, sample_eps_ball
 
 
 def get_symbol_specs(symbol: str) -> float:
@@ -48,7 +48,7 @@ def evaluate_portfolio(
     lookback_window: int = 6,
     base_volume: float = 1.0,
 ) -> vbt.Portfolio:
-    SYMBOLS = list(candles_dict.keys())
+    symbols = list(candles_dict.keys())
 
     weights = np.array(weights)
     weights = weights / weights.sum()
@@ -56,7 +56,7 @@ def evaluate_portfolio(
     portfolio_entries = {}
     portfolio_exits = {}
 
-    for symbol, weight in zip(SYMBOLS, weights):
+    for symbol, weight in zip(symbols, weights):
         candles = candles_dict[symbol]
         deltas = weight * candles["Deltas"]
         deltas_ema = deltas.ewm(span=1000, adjust=False).mean()[1000:]
@@ -89,19 +89,19 @@ def evaluate_portfolio(
         portfolio_exits[symbol].loc[points_sell.index] = True
 
     # Align all signals and close prices by reindexing to a common index
-    common_index = portfolio_entries[SYMBOLS[0]].index
+    common_index = portfolio_entries[symbols[0]].index
 
     final_entries = pd.concat(
-        [portfolio_entries[symbol].reindex(common_index) for symbol in SYMBOLS], axis=1
+        [portfolio_entries[symbol].reindex(common_index) for symbol in symbols], axis=1
     ).any(axis=1)
     final_exits = pd.concat(
-        [portfolio_exits[symbol].reindex(common_index) for symbol in SYMBOLS], axis=1
+        [portfolio_exits[symbol].reindex(common_index) for symbol in symbols], axis=1
     ).any(axis=1)
     close_prices = pd.concat(
-        [candles_dict[symbol]["Close"].reindex(common_index) for symbol in SYMBOLS],
+        [candles_dict[symbol]["Close"].reindex(common_index) for symbol in symbols],
         axis=1,
     )
-    close_prices.columns = SYMBOLS
+    close_prices.columns = symbols
 
     # Backtesting with vectorbt
     portfolio = vbt.Portfolio.from_signals(
@@ -194,25 +194,6 @@ def run_optimization():
     run_optimizations_in_parallel(candles_dict, lookback_windows, num_symbols, maxiter)
 
 
-def sample_weight_neighborhood(
-    weight: np.ndarray, eps: float, seed: Optional[int] = None
-) -> np.ndarray:
-    """
-    Samples weights around an epsilon ball to validate how stable the procedure is.
-
-    This is not a uniform distribution in the ball, prefering points around the center, but that is good enough for us.
-    """
-    assert eps > 0, "radius has to be postive"
-    _rng = np.random.default_rng(seed)
-    radius = eps - _rng.uniform(0, eps)
-
-    sample = _rng.normal(0, 1.0, len(weight))
-    sample /= np.linalg.norm(sample, 2)
-    sample *= radius
-
-    return weight + sample
-
-
 def main():
     print("Getting ticks")
     ticks = {symbol: get_ticks(symbol) for symbol in SYMBOLS}
@@ -275,7 +256,7 @@ def main():
     end_vals = []
     dists = []
     for i in range(250):
-        sample = sample_weight_neighborhood(argmax_weight, eps)
+        sample = sample_eps_ball(argmax_weight, eps)
         portfolio_ = evaluate_portfolio(
             candles_dict, weights=sample, lookback_window=argmax_lb
         )

@@ -52,7 +52,6 @@ def build_candle(
         else:
             raise TypeError(f"Invalid type for volumes: {type(volumes)=}.")
 
-    # Rename columns using a dictionary-based approach
     candles.rename(
         columns={"open": "Open", "high": "High", "low": "Low", "close": "Close"},
         inplace=True,
@@ -110,3 +109,50 @@ def slice_sorted(
 
     return df.iloc[idx0:idx1]
 
+
+def sample_eps_ball(
+    center: np.ndarray, eps: float, n_samples: int = 1, seed: Optional[int] = None
+) -> np.ndarray:
+    """
+    Samples points around an epsilon ball to validate how stable the procedure is.
+
+    This is not a uniform distribution in the ball, preferring points around the center, but that is good enough for us.
+
+    ### Parameters:
+    * center : np.ndarray
+        * An array representing the center of the epsilon ball. The shape is `(n,)` where `n` is the dimensionality of the space.
+    * eps : float
+        * The radius of the epsilon ball. Must be a positive value.
+    * n_samples : int, optional
+        * The number of samples to generate. The resulting array will have a shape of `(n_samples, n)`. Default is 1.
+    * seed : Optional[int], optional
+        * An optional random seed for reproducibility. Default is None.
+
+    ### Returns:
+    * np.ndarray
+        * An array of shape `(n_samples, n)` representing the sampled points within the epsilon ball.
+
+    ### Raises:
+    * AssertionError
+        * If `eps` is not greater than 0.
+    """
+    assert eps > 0, "radius has to be positive"
+    _rng = np.random.default_rng(seed)
+
+    # Generate random radii for all samples
+    radii = eps - _rng.uniform(0, eps, size=n_samples)
+
+    # Generate normal distributed samples in a vectorized manner
+    samples = _rng.normal(0, 1.0, size=(n_samples, len(center)))
+
+    # Normalize each sample to lie on the surface of a unit sphere
+    norms = np.linalg.norm(samples, axis=1, keepdims=True)
+    samples /= norms
+
+    # Scale samples by the corresponding radii
+    samples *= radii[:, np.newaxis]
+
+    # Shift the samples by the center
+    samples += center
+
+    return samples
