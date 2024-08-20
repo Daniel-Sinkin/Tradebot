@@ -138,3 +138,24 @@ def optimize_with_simulated_annealing(
 
     return lookback_window, best_sharpe, best_weights
 
+
+def run_optimizations_in_parallel(
+    candles_dict, lookback_windows, num_symbols, maxiter=25
+):
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        futures = [
+            executor.submit(
+                optimize_with_simulated_annealing,
+                candles_dict,
+                lw,
+                num_symbols,
+                maxiter,
+            )
+            for lw in lookback_windows
+        ]
+        for future in concurrent.futures.as_completed(futures):
+            lookback_window, best_sharpe, best_weights = future.result()
+            print(
+                f"Lookback Window {lookback_window}: Best Sharpe Ratio: {best_sharpe:.4f} with weights: {best_weights}"
+            )
+
