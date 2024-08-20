@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, TypeVar
 
 import numpy as np
 import pandas as pd
@@ -45,10 +45,12 @@ def build_candle(
         if isinstance(volumes, float):
             candles["Volume"] = volumes
         elif isinstance(volumes, pd.Series):
-            assert len(volumes) == len(
+            # Resample the volumes Series to match the resampling of prices
+            resampled_volumes = volumes.resample(timeframe).sum()
+            assert len(resampled_volumes) == len(
                 candles
             ), "Volume series must match the length of the candles DataFrame."
-            candles["Volume"] = volumes
+            candles["Volume"] = resampled_volumes
         else:
             raise TypeError(f"Invalid type for volumes: {type(volumes)=}.")
 
@@ -63,51 +65,74 @@ def build_candle(
     return candles
 
 
-def slice_sorted(
-    self, df: pd.DataFrame, key: str, include_left: bool = True, include_right=False
+T = TypeVar("T", int, float, pd.Timestamp, str)
+
+
+def slice_sorted(  # pylint: disable=too-many-arguments
+    df: pd.DataFrame,
+    key: str,
+    left: T | None = None,
+    right: T | None = None,
+    left_inclusive: bool = True,
+    right_inclusive: bool = False,
 ) -> pd.DataFrame:
     """
-    Slices a DataFrame according to some key. Significantly faster than boolean slicing which doesn't
-    use the sorted property.
+    Slices a DataFrame based on a key column, with flexible boundary conditions.
 
     ### Parameters:
     * df : pd.DataFrame
         * The DataFrame to slice.
     * key : str
-        * The column name used as the key for slicing. This column should be sorted.
-    * include_left : bool, optional
-        * If True, the slice includes the left bound. Default is True.
-    * include_right : bool, optional
-        * If True, the slice includes the right bound. Default is False.
+        * The column name to perform the slicing on.
+    * left : T | None, optional
+        * Comparable to the key column, this is the lower boundary for slicing (default: None).
+    * right : T | None, optional
+        * Comparable to the key column, this is the upper boundary for slicing (default: None).
+    * left_inclusive : bool, optional
+        * If True, the lower bound is inclusive (>=). If False, it is exclusive (>). Default is True.
+    * right_inclusive : bool, optional
+        * If True, the upper bound is inclusive (<=). If False, it is exclusive (<). Default is False.
 
     ### Returns:
     * pd.DataFrame
-        * A sliced DataFrame according to the key.
+        * The sliced DataFrame based on the specified conditions.
 
     ### Raises:
-    * TypeError
-        * If `df` is not a pandas DataFrame.
-    * KeyError
-        * If the `key` is not found in the DataFrame columns.
+    * ValueError
+        * If the key column is not found in the DataFrame.
+        * If the left boundary is greater than the right boundary.
+
+    ### Notes:
+    * Requires `left` and `right` to be comparable to the `df[key]` values, such as numerics, datetime objects, or other classes that implement rich comparison.
+    * The default configuration covers the case `df[(left <= df["key"]) & (df["key"] < right)]`.
+    * This function is associative, meaning that the following expressions are identical:
+        - `slice_sorted(slice_sorted(df, "key", left=t0), right=t1)`
+        - `slice_sorted(slice_sorted(df, "key", right=t1), left=t0)`
+        - `slice_sorted(df, "key", left=t0, right=t1)`
     """
-    if not isinstance(df, pd.DataFrame):
-        raise TypeError("Input must be a Pandas DataFrame.")
+    if key not in df.columns:
+        raise ValueError(f"Column {key} not found in DataFrame.")
 
-    if key not in pd.DataFrame.columns:
-        raise KeyError(f"Column '{key}' not found in df.")
+    if left is not None and right is not None and left > right:
+        raise ValueError("Left boundary is greater than right boundary.")
 
-    left_side = "left" if include_left else "right"
-    right_side = "right" if include_right else "left"
+    if right is None:
+        # df[t0 <= df["ts"]] or df[t0 < df["ts"]] or df
+        right_idx: int = len(df)
+    else:
+        right_idx: int = np.searchsorted(
+            df[key], right, side="right" if right_inclusive else "left"
+        )
 
-    idx0 = int(df[key].searchsorted(df[key].iloc[0], side=left_side))
-    idx1 = int(df[key].searchsorted(df[key].iloc[-1], side=right_side))
+    if left is None:
+        # df[df["ts"] <= t1] or df[df["ts"] < t1] or df
+        left_idx: int = 0
+    else:
+        left_idx: int = np.searchsorted(
+            df[key], left, side="left" if left_inclusive else "right"
+        )
 
-    if idx0 == 0:
-        idx0 = None
-    if idx1 == 0 or idx1 >= len(df):
-        idx1 = None
-
-    return df.iloc[idx0:idx1]
+    return df.iloc[left_idx:right_idx]
 
 
 def sample_eps_ball(
