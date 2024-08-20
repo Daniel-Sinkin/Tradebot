@@ -1,5 +1,6 @@
 from typing import Optional
 
+import numpy as np
 import pandas as pd
 
 
@@ -63,5 +64,49 @@ def build_candle(
     return candles
 
 
-def loc_sorted(self):
-    pass
+def slice_sorted(
+    self, df: pd.DataFrame, key: str, include_left: bool = True, include_right=False
+) -> pd.DataFrame:
+    """
+    Slices a DataFrame according to some key. Significantly faster than boolean slicing which doesn't
+    use the sorted property.
+
+    ### Parameters:
+    * df : pd.DataFrame
+        * The DataFrame to slice.
+    * key : str
+        * The column name used as the key for slicing. This column should be sorted.
+    * include_left : bool, optional
+        * If True, the slice includes the left bound. Default is True.
+    * include_right : bool, optional
+        * If True, the slice includes the right bound. Default is False.
+
+    ### Returns:
+    * pd.DataFrame
+        * A sliced DataFrame according to the key.
+
+    ### Raises:
+    * TypeError
+        * If `df` is not a pandas DataFrame.
+    * KeyError
+        * If the `key` is not found in the DataFrame columns.
+    """
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError("Input must be a Pandas DataFrame.")
+
+    if key not in pd.DataFrame.columns:
+        raise KeyError(f"Column '{key}' not found in df.")
+
+    left_side = "left" if include_left else "right"
+    right_side = "right" if include_right else "left"
+
+    idx0 = int(df[key].searchsorted(df[key].iloc[0], side=left_side))
+    idx1 = int(df[key].searchsorted(df[key].iloc[-1], side=right_side))
+
+    if idx0 == 0:
+        idx0 = None
+    if idx1 == 0 or idx1 >= len(df):
+        idx1 = None
+
+    return df.iloc[idx0:idx1]
+
