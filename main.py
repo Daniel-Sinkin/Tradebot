@@ -109,3 +109,31 @@ def evaluate_portfolio(
 
     return portfolio
 
+
+def optimize_with_simulated_annealing(
+    candles_dict, lookback_window, num_symbols, maxiter: int
+):
+    bounds = [(-1, 1) for _ in range(num_symbols)]
+    iteration = 0
+    t0 = time.perf_counter()
+
+    def objective(weights):
+        return -evaluate_portfolio(candles_dict, np.array(weights), lookback_window)[
+            "Sharpe Ratio"
+        ]
+
+    def callback(x, f, context):
+        nonlocal iteration
+        iteration += 1
+        print(
+            f"{lookback_window:2} - Iteration {iteration}/{maxiter}, Current Sharpe Ratio: {-f:.4f}. Total runtime {time.perf_counter() - t0:.2f} seconds."
+        )
+
+    result = dual_annealing(
+        objective, bounds=bounds, maxiter=maxiter, callback=callback
+    )
+    best_weights = result.x
+    best_sharpe = -result.fun
+
+    return lookback_window, best_sharpe, best_weights
+
