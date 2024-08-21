@@ -6,34 +6,6 @@ import vectorbt as vbt
 from fpdf import FPDF
 
 
-def generate_report(
-    portfolio: vbt.Portfolio, report_type: str, output_path: str = None
-) -> None:
-    """
-    Generate a report from a vectorbt portfolio.
-
-    ### Parameters:
-    * portfolio: vbt.Portfolio
-        * The vectorbt Portfolio object to generate reports from.
-    * report_type: str
-        * The type of report to generate. Options are 'dash', 'pdf', and 'xlsx'.
-    * output_path: str, optional
-        * The path where the report should be saved. For 'dash', this is not used.
-    """
-    if report_type == "dash":
-        generate_dash_report(portfolio)
-    elif report_type == "pdf":
-        if output_path is None:
-            raise ValueError("Output path must be specified for PDF reports.")
-        generate_pdf_report(portfolio, output_path)
-    elif report_type == "xlsx":
-        if output_path is None:
-            raise ValueError("Output path must be specified for XLSX reports.")
-        generate_xlsx_report(portfolio, output_path)
-    else:
-        raise ValueError(f"Unknown report type: {report_type}")
-
-
 def generate_dash_report(portfolio: vbt.Portfolio) -> None:
     """
     Generate a Dash report for the portfolio.
@@ -52,9 +24,9 @@ def generate_pdf_report(portfolio: vbt.Portfolio, output_path: str) -> None:
     Generate a PDF report for the portfolio.
 
     ### Parameters:
-    * portfolio: vbt.Portfolio
+    * portfolio
         * The vectorbt Portfolio object to generate a PDF report from.
-    * output_path: str
+    * output_path
         * The path where the PDF report should be saved.
     """
     pdf = FPDF()
@@ -71,9 +43,9 @@ def generate_xlsx_report(portfolio: vbt.Portfolio, output_path: str) -> None:
     Generate an XLSX report for the portfolio.
 
     ### Parameters:
-    * portfolio: vbt.Portfolio
+    * portfolio
         * The vectorbt Portfolio object to generate an XLSX report from.
-    * output_path: str
+    * output_path
         * The path where the XLSX report should be saved.
     """
     writer = pd.ExcelWriter(output_path, engine="xlsxwriter")
@@ -82,6 +54,34 @@ def generate_xlsx_report(portfolio: vbt.Portfolio, output_path: str) -> None:
     portfolio.positions.to_dataframe().to_excel(writer, sheet_name="Positions")
 
     writer.save()
+
+
+def generate_report(
+    portfolio: vbt.Portfolio, report_type: str, output_path: str = None
+) -> None:
+    """
+    Generate a report from a vectorbt portfolio.
+
+    ### Parameters:
+    * portfolio
+        * The vectorbt Portfolio object to generate reports from.
+    * report_type
+        * The type of report to generate. Options are 'dash', 'pdf', and 'xlsx'.
+    * output_path
+        * The path where the report should be saved. For 'dash', this is not used.
+    """
+    if report_type == "dash":
+        generate_dash_report(portfolio)
+    elif report_type == "pdf":
+        if output_path is None:
+            raise ValueError("Output path must be specified for PDF reports.")
+        generate_pdf_report(portfolio, output_path)
+    elif report_type == "xlsx":
+        if output_path is None:
+            raise ValueError("Output path must be specified for XLSX reports.")
+        generate_xlsx_report(portfolio, output_path)
+    else:
+        raise ValueError(f"Unknown report type: {report_type}")
 
 
 def main() -> None:

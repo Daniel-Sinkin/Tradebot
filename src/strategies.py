@@ -12,8 +12,7 @@ class Strategy(ABC):
         Run the backtest for the strategy.
 
         ### Returns:
-        * vbt.Portfolio
-            * A vectorbt Portfolio object containing the results of the backtested strategy.
+        * A vectorbt Portfolio object containing the results of the backtested strategy.
         """
         pass
 
@@ -32,26 +31,26 @@ class DifferentialMomentumStrategy(Strategy):
         Initialize the Differential Momentum Strategy.
 
         ### Parameters:
-        * candles_dict : dict[str, pd.DataFrame]
+        * candles_dict
             * A dictionary where each key is a symbol and the corresponding value is a DataFrame
               containing OHLC data. Each DataFrame must include a "Deltas" column representing the
               price differences.
-        * weights : np.ndarray
-            * An array of weights to apply to each symbol's deltas. The weights should sum to 1.
-        * lookback_window : int, optional
-            * The number of periods to consider when comparing recent deltas to their EMA. Default is 6.
-        * ema_span : int, optional
+        * weights
+            * An array of weights to apply to each symbol's deltas. The weights can't all be zero but
+              don't have to sum to 1.0 as they get normalized internally.
+        * lookback_window
+            * The number of periods to consider when comparing recent deltas to their EMA.
+        * ema_span
             * The span for calculating the Exponential Moving Average (EMA) used to smooth the deltas.
-              Default is 1000.
-        * timeframe : str, optional
+        * timeframe
             * The frequency of the data used for backtesting, specified in a pandas-compatible string
-              format (e.g., "5min", "1H"). Default is "5min".
-        * base_volume : float, optional
+              format (e.g., "5min", "1H").
+        * base_volume
             * The base volume used for scaling the strategy (this parameter is included for potential
-              future use but is not currently utilized). Default is 1.0.
+              future use but is not currently utilized).
         """
         self.candles_dict = candles_dict
-        self.weights = weights
+        self.weights = weights / np.linalg.norm(weights, 2)
         self.lookback_window = lookback_window
         self.ema_span = ema_span
         self.timeframe = timeframe
@@ -62,8 +61,7 @@ class DifferentialMomentumStrategy(Strategy):
         Run the backtest for the Differential Momentum Strategy.
 
         ### Returns:
-        * vbt.Portfolio
-            * A vectorbt Portfolio object containing the results of the backtested strategy.
+        * A vectorbt Portfolio object containing the results of the backtested strategy.
         """
         symbols = list(self.candles_dict.keys())
 

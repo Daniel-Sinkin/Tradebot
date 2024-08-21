@@ -7,7 +7,6 @@ import pandas as pd
 def build_candle(
     prices: pd.Series,
     timeframe: str,
-    volumes: Optional[float | pd.Series] = None,
     include_tick_volumes: bool = False,
     dropna: bool = True,
 ) -> pd.DataFrame:
@@ -15,21 +14,20 @@ def build_candle(
     Constructs a DataFrame of OHLC (Open, High, Low, Close) candles from price data.
 
     ### Parameters:
-    * prices : pd.Series
+    * prices
         * A pandas Series of price data, indexed by datetime.
-    * timeframe : str
+    * timeframe
         * A string representing the resampling timeframe (e.g., '1T' for 1 minute, '1H' for 1 hour).
-    * volumes : Optional[float | pd.Series], optional
+    * volumes
         * Either a single float representing the volume for each period or a pandas Series of volumes, indexed by datetime.
         * If None, volume data will not be included.
-    * include_tick_volumes : bool, optional
+    * include_tick_volumes
         * If True, includes a column for tick volumes (i.e., the count of trades per resampled period). Default is False.
-    * dropna : bool, optional
+    * dropna
         * If True, drops any NaN values from the resulting DataFrame. Default is True.
 
     ### Returns:
-    * pd.DataFrame
-        * A DataFrame with columns for Open, High, Low, Close prices, and optionally Volume and TickVolume.
+    * A DataFrame with columns for Open, High, Low, Close prices, and optionally Volume and TickVolume.
 
     ### Raises:
     * TypeError
@@ -38,26 +36,13 @@ def build_candle(
     resampled = prices.resample(timeframe)
     candles = resampled.ohlc()
 
-    if include_tick_volumes:
-        candles["TickVolume"] = resampled.count()
-
-    if volumes is not None:
-        if isinstance(volumes, float):
-            candles["Volume"] = volumes
-        elif isinstance(volumes, pd.Series):
-            # Resample the volumes Series to match the resampling of prices
-            resampled_volumes = volumes.resample(timeframe).sum()
-            assert len(resampled_volumes) == len(
-                candles
-            ), "Volume series must match the length of the candles DataFrame."
-            candles["Volume"] = resampled_volumes
-        else:
-            raise TypeError(f"Invalid type for volumes: {type(volumes)=}.")
-
     candles.rename(
         columns={"open": "Open", "high": "High", "low": "Low", "close": "Close"},
         inplace=True,
     )
+
+    if include_tick_volumes:
+        candles["TickVolume"] = resampled.count()
 
     if dropna:
         candles.dropna(inplace=True)
@@ -80,22 +65,21 @@ def slice_sorted(  # pylint: disable=too-many-arguments
     Slices a DataFrame based on a key column, with flexible boundary conditions.
 
     ### Parameters:
-    * df : pd.DataFrame
+    * df
         * The DataFrame to slice.
-    * key : str
+    * key
         * The column name to perform the slicing on.
-    * left : T | None, optional
-        * Comparable to the key column, this is the lower boundary for slicing (default: None).
-    * right : T | None, optional
-        * Comparable to the key column, this is the upper boundary for slicing (default: None).
-    * left_inclusive : bool, optional
-        * If True, the lower bound is inclusive (>=). If False, it is exclusive (>). Default is True.
-    * right_inclusive : bool, optional
-        * If True, the upper bound is inclusive (<=). If False, it is exclusive (<). Default is False.
+    * left
+        * Comparable to the key column, this is the lower boundary for slicing.
+    * right
+        * Comparable to the key column, this is the upper boundary for slicing.
+    * left_inclusive
+        * If True, the lower bound is inclusive (>=). If False, it is exclusive (>).
+    * right_inclusive
+        * If True, the upper bound is inclusive (<=). If False, it is exclusive (<).
 
     ### Returns:
-    * pd.DataFrame
-        * The sliced DataFrame based on the specified conditions.
+    * The sliced DataFrame based on the specified conditions.
 
     ### Raises:
     * ValueError

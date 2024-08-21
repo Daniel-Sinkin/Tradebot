@@ -3,30 +3,30 @@ import time
 from abc import ABC, abstractmethod
 
 import numpy as np
+import pandas as pd
 from scipy.optimize import dual_annealing
 
 from .util import build_candle
 
 
 class Optimizer(ABC):
-    def __init__(self, candles_dict, strategy, num_symbols, maxiter=25):
+    def __init__(self, candles_dict: dict[str, pd.DataFrame], strategy, maxiter=25):
         """
         Initialize the Optimizer.
 
         ### Parameters:
-        * candles_dict: dict
+        * candles_dict
             * Dictionary containing the candlestick data for each symbol.
-        * strategy: callable
+        * strategy
             * The trading strategy function to optimize. This function should accept
               weights and a lookback window as parameters and return a performance metric.
-        * num_symbols: int
+        * num_symbols
             * Number of symbols in the portfolio.
-        * maxiter: int, optional
-            * Maximum number of iterations for the optimization process. Default is 25.
+        * maxiter
+            * Maximum number of iterations for the optimization process.
         """
         self.candles_dict = candles_dict
         self.strategy = strategy
-        self.num_symbols = num_symbols
         self.maxiter = maxiter
 
     @abstractmethod
