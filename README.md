@@ -2,9 +2,6 @@
 
 This project implements an algorithmic trading bot designed to execute and optimize trading strategies based on historical market data. The bot is built with modular components that allow for the easy integration of new strategies, data sources, and optimization techniques. The current focus is on a Differential Momentum Strategy, but the infrastructure is in place to support a variety of strategies.
 
-![Trading without Emotions.](assets/img1.webp)
-
-
 ## Strategy: Differential Momentum Strategy
 
 The Differential Momentum Strategy (DMS) implemented in this project is a momentum-based trading strategy. The core idea is to generate buy and sell signals based on the comparison of recent price differences (deltas) with their exponentially weighted moving average (EMA).
@@ -28,8 +25,6 @@ portfolio = strategy.run_backtest()
 print(portfolio.stats())
 portfolio.plot().show()
 ```
-
-![Objective, Cold and always ready for ROI.](assets/img2.webp)
 
 ## Infrastructure
 
