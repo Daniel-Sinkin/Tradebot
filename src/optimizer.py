@@ -88,13 +88,13 @@ class SimulatedAnnealingOptimizer(Optimizer):
         t0 = time.perf_counter()
 
         def objective(weights):
-            # Negative of the strategy's return because we're minimizing
-            return -(
-                self.strategy(
-                    self.candles_dict, np.array(weights), lookback_window
-                ).stats()["End Value"]
-                - 100
+            portfolio_ = self.strategy(
+                self.candles_dict, np.array(weights), lookback_window
             )
+            end_val_total = portfolio_.stats()["End Value"]
+            end_val_delta = end_val_total - 1.0
+            # Recall that we minimize, more negative is better.
+            return -end_val_delta
 
         def callback(x, f, context):
             nonlocal iteration

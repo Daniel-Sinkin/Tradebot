@@ -38,6 +38,8 @@ class DifferentialMomentumStrategy(Strategy):
         * weights
             * An array of weights to apply to each symbol's deltas. The weights can't all be zero but
               don't have to sum to 1.0 as they get normalized internally.
+
+              Need one weight for search symbol (key in candles_dict).
         * lookback_window
             * The number of periods to consider when comparing recent deltas to their EMA.
         * ema_span
@@ -49,6 +51,11 @@ class DifferentialMomentumStrategy(Strategy):
             * The base volume used for scaling the strategy (this parameter is included for potential
               future use but is not currently utilized).
         """
+        if len(candles_dict) != len(weights):
+            raise ValueError(f"{len(candles_dict)=}!={len(weights)=}")
+        if np.isclose(weights, np.zeros_like(weights)):
+            raise ValueError("Require non-zero weight vector.")
+
         self.candles_dict = candles_dict
         self.weights = weights / np.linalg.norm(weights, 2)
         self.lookback_window = lookback_window
@@ -125,7 +132,6 @@ class DifferentialMomentumStrategy(Strategy):
         )
         close_prices.columns = symbols
 
-        # Backtesting with vectorbt
         portfolio = vbt.Portfolio.from_signals(
             close=close_prices,
             entries=final_entries,
