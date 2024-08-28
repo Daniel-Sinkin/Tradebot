@@ -9,7 +9,7 @@ class _Paths:
     ROOT = Path(__file__).resolve().parent
     # Find the root of the module if the parent is not it, this assumes that there
     # is exactly one setup.py in the entire module.
-    while not ROOT.joinpath("setup.py").exists() and ROOT != ROOT.parent:
+    while not ROOT.joinpath("__init__.py").exists() and ROOT != ROOT.parent:
         ROOT = ROOT.parent
 
     DATA = ROOT.joinpath("data")

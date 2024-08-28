@@ -1,8 +1,11 @@
 import logging
 import sqlite3
 from contextlib import contextmanager
+from pathlib import Path
 from threading import Lock
+from typing import Optional
 
+from .constants import _Paths
 from .util import format_connection
 
 logger = logging.getLogger(__name__)
@@ -18,8 +21,10 @@ class DatabaseManager:
                 cls._instance = super().__new__(cls)
         return cls._instance
 
-    def __init__(self, db_path=":memory:"):
+    def __init__(self, db_path: Optional[Path] = None):
         if not hasattr(self, "initialized"):
+            if db_path is None:
+                db_path = _Paths.DATA.joinpath("database.db")
             self.db_path = db_path
             self.connection = None
             self.initialized = True
