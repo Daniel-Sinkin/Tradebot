@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass
-from enum import StrEnum, auto
+from enum import StrEnum
 from pathlib import Path
 
 
