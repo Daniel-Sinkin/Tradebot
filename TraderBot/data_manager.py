@@ -11,6 +11,7 @@ import pandas as pd
 from .constants import _CandleTimeframe, _Paths, _Symbol
 from .db_manager import DatabaseManager
 from .logger import cursor_execute
+from .util import slice_sorted
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,9 @@ class DataManager(ABC):
         if not isinstance(timeframes, list):
             timeframes = [timeframes]
 
+        if ts_until is None:
+            ts_until = dt.datetime.now(tz=dt.timezone.utc)
+
         df_list = [
             self._get_candles(symbol, ctf, ts_from, ts_until)
             for symbol in symbols
@@ -59,6 +63,8 @@ class DataManager(ABC):
 
         assert candles.columns.str.islower().all()
         for c in ohlc:
+            # TODO: Change the internal handling of ticks and candles to either use f32
+            #       or 8/16 bit deltas for better compression
             assert candles[c].dtype == np.float64
 
 
@@ -110,7 +116,7 @@ class PickleDataManager(DataManager):
         if not isinstance(ticks, pd.DataFrame):
             raise TypeError("ticks has to be a DataFrame.")
         if ticks.empty:
-            raise ValueError("No ticks passed!")
+            raise ValueError("No ticks!")
 
         candles = (
             ticks.set_index("ts")
@@ -144,6 +150,9 @@ class PickleDataManager(DataManager):
         validate_candles: bool = True,
     ) -> Optional[pd.DataFrame]:
         candle_fp = _Paths.DATA.joinpath(f"candles_{symbol}_{timeframe}.pkl")
+        if ts_until is None:
+            ts_until = dt.datetime.now(tz=dt.timezone.utc)
+
         if not candle_fp.exists():
             logger.info(
                 f"{candle_fp=} does not exist, trying to build the candles from ticks."
@@ -159,8 +168,37 @@ class PickleDataManager(DataManager):
                 raise RuntimeError("Could not save candles after building.")
 
         candles = cast(pd.DataFrame, pd.read_pickle(candle_fp))
+        candles = slice_sorted(candles, "ts", ts_from, ts_until)
+
         if validate_candles:
             DataManager.validate_candles(candles)
+        return candles
+
+
+class DatabaseDataManager(DataManager):
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def _get_candles(
+        self,
+        symbol: _Symbol,
+        timeframe: _CandleTimeframe,
+        ts_from: dt.datetime,
+        ts_until: Optional[dt.datetime] = None,
+    ) -> Optional[pd.DataFrame]:
+        if ts_until is None:
+            ts_until = dt.datetime.now(tz=dt.timezone.utc)
+        query = f"""
+SELECT * FROM candles 
+WHERE symbol = '{symbol}' AND timeframe = '{timeframe}' AND ts BETWEEN '{ts_from.isoformat()}' AND '{ts_until.isoformat()}'
+            """
+        logger.debug(f"{query=}")
+        candles = pd.read_sql(query, self.conn)
+        if candles.empty:
+            logger.info("No candles found in the database for the given parameters.")
+            return None
+        DataManager.validate_candles(candles)
+        logger.debug(f"\n{candles.iloc[0].ts}\n{candles.iloc[-1].ts}")
         return candles
 
 
@@ -328,13 +366,19 @@ def create_connection_and_fill_with_tick_pkl(
 
 
 def main() -> None:
-    candles_nested_dict = PickleDataManager().get_candles(
+    candles = PickleDataManager().get_candles(
         symbols=list(_Symbol),
         timeframes=list(_CandleTimeframe),
         ts_from=dt.datetime(2024, 1, 1, tzinfo=dt.timezone.utc),
     )
     with DatabaseManager().manage_connection() as conn:
-        candles_nested_dict.to_sql("candles", conn, if_exists="append", index=False)
+        candles.to_sql("candles", conn, if_exists="append", index=False)
 
-        candle_df_from_sql = pd.read_sql("SELECT * FROM candles", conn)
-        logger.info("\n%s", candle_df_from_sql.sample(n=10))
+        ddm = DatabaseDataManager(conn)
+        print(
+            ddm.get_candles(
+                list(_Symbol),
+                list(_CandleTimeframe),
+                ts_from=dt.datetime(2024, 1, 1, tzinfo=dt.timezone.utc),
+            )
+        )
