@@ -1,3 +1,4 @@
+import datetime as dt
 import sqlite3
 from pathlib import Path
 from typing import Optional, cast
@@ -7,18 +8,20 @@ import pandas as pd
 from .constants import CandleTimeframe, DBTables, Paths_, Symbol
 
 
-def load_tick_pkl(symbol: Symbol | str, append_symbol: bool = False) -> pd.DataFrame:
-    if isinstance(symbol, Symbol):
-        symbol = symbol.value
+def load_tick_pkl(symbol: Symbol) -> pd.DataFrame:
+    if not isinstance(symbol, Symbol):
+        raise TypeError(f"{symbol=} is of {type=} but has to be of type 'Symbol'!")
 
     assert isinstance(symbol, str)
 
     filename = f"ticks_{symbol}.pkl"
-    ticks = cast(pd.DataFrame, pd.read_pickle(Paths_.data.joinpath(filename)))
+    ticks = cast(pd.DataFrame, pd.read_pickle(Paths_.DATA.joinpath(filename)))
 
-    if append_symbol:
-        ticks["symbol"] = symbol
+    ticks.reset_index(inplace=True)
 
+    ticks["symbol"] = symbol.value
+
+    ticks = ticks[["symbol", "ts", "bid", "ask"]]
     return ticks
 
 
@@ -70,10 +73,7 @@ def insert_ticks_into_db(ticks: pd.DataFrame, conn: sqlite3.Connection) -> None:
 
 
 def create_candles_from_ticks(
-    ticks: pd.DataFrame,
-    timeframe: CandleTimeframe | str,
-    append_symbol: bool = False,
-    append_timeframe: bool = False,
+    ticks: pd.DataFrame, timeframe: CandleTimeframe
 ) -> pd.DataFrame:
     """
     Create OHLC candles for a specific timeframe and insert them into the database.
@@ -86,81 +86,82 @@ def create_candles_from_ticks(
     if ticks.empty:
         raise ValueError("No ticks passed!")
 
-    # If necessary converts timeframe to our internal enum.
-    if timeframe not in CandleTimeframe:
-        timeframe = CandleTimeframe.from_pandas_timeframe(timeframe)
-    if not isinstance(timeframe, str):
-        raise TypeError(f"{type(timeframe)=} is not supported.")
-
-    candles = ticks.resample(timeframe.to_pandas_timeframe()).agg(
-        open=("bid", "first"),
-        high=("bid", "max"),
-        low=("bid", "min"),
-        close=("bid", "last"),
-        volume=("bid", "count"),
+    candles = (
+        ticks.set_index("ts")
+        .resample(timeframe.to_pandas_timeframe())
+        .agg(
+            open=("bid", "first"),
+            high=("bid", "max"),
+            low=("bid", "min"),
+            close=("bid", "last"),
+            volume=("bid", "count"),
+        )
+        .reset_index()
     )
 
-    if append_symbol:
-        try:
-            candles["symbol"] = ticks.iloc[0]["symbol"]
-        except KeyError:
-            print(
-                "WARNING: activated append_symbol while no symbol is availiable in the ticks, skipping the appending."
-            )
-    if append_timeframe:
-        candles["timeframe"] = timeframe.value
+    candles["symbol"] = ticks.iloc[0]["symbol"]
+    candles["timeframe"] = timeframe.value
+
+    candles = candles[
+        ["symbol", "timeframe", "ts", "open", "high", "low", "close", "volume"]
+    ]
+
     return candles
 
 
-def create_db_and_fill_with_tick_pkl(
-    backup_location: Optional[Path] = None,
+def create_connection_and_fill_with_tick_pkl(
+    backup_location: Optional[Path] = None, load_backup: bool = True
 ) -> sqlite3.Connection:
     """
     Creates in-memory database connection, fills it with the tick and (generated) candle data from
     the data folder and returns the connection.
+
     """
     conn = create_database_connection()
 
-    # If a backup exists then use that one, no validation is done it on it though.
-    if backup_location is not None and backup_location.exists():
-        return sqlite3.connect(backup_location)
+    if load_backup:
+        if backup_location is None:
+            print("WARNING: 'load_backup' is set but backup_location is None!")
+        elif backup_location.exists():
+            return sqlite3.connect(backup_location)
 
     for i, symbol in enumerate(Symbol):
         print(f"{i + 1}/{len(Symbol)}.", symbol)
         print("Loading Ticks")
-        ticks = load_tick_pkl(symbol=symbol, append_symbol=True)
+        ticks = load_tick_pkl(symbol=symbol)
 
         print("Pushing Ticks")
-        ticks.to_sql(
-            "ticks", conn, if_exists="replace", index=True, index_label="timestamp"
+        ticks.reset_index(inplace=False).to_sql(
+            "ticks",
+            conn,
+            if_exists="replace",
         )
 
         print("Creating and Pushing Candles")
-        for j, tf in enumerate(CandleTimeframe):
-            print(f"\t{j + 1}/{len(CandleTimeframe)}.", tf)
-            candles = create_candles_from_ticks(
-                ticks, tf, append_symbol=True, append_timeframe=True
-            )
+        for j, ctf in enumerate(CandleTimeframe):
+            print(f"\t{j + 1}/{len(CandleTimeframe)}.", ctf)
+            candles = create_candles_from_ticks(ticks, ctf)
             candles.to_sql(
                 DBTables.candles,
                 conn,
                 if_exists="append",
                 index=True,
-                index_label="timestamp",
+                index_label="ts",
             )
         break
 
     conn.commit()
     print("Transaction committed.")
 
-    with sqlite3.connect(Paths_.data.joinpath("database_backup.db")) as disc_conn:
+    with sqlite3.connect(Paths_.DATA.joinpath("database_backup.db")) as disc_conn:
         conn.backup(disc_conn)
 
     return conn
 
 
 def main() -> None:
-    conn = create_db_and_fill_with_tick_pkl(Paths_.data.joinpath("database_backup.db"))
+    filepath_db = Paths_.DATA.joinpath("database_backup.db")
+    conn = create_connection_and_fill_with_tick_pkl(filepath_db, load_backup=False)
 
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM ticks LIMIT 5")
@@ -174,3 +175,5 @@ def main() -> None:
     print("Sample data from candles table:")
     for row in candles_sample:
         print(row)
+
+    print(1)

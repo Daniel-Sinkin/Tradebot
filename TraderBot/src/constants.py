@@ -1,11 +1,13 @@
+import datetime as dt
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+from typing import TypeAlias
 
 
 @dataclass
 class Paths_:
-    data = Path("data")
+    DATA = Path("data")
 
 
 class Symbol(StrEnum):
