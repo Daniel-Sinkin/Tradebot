@@ -6,11 +6,10 @@ kanban-plugin: board
 
 ## Backlog
 
-- [ ] # Data Processing
 - [ ] # Trading Algorithm
 - [ ] # Evaluation
-- [ ] # Report Building
 - [ ] # Optimizing
+- [ ] # Report Building
 
 
 ## Refined Backlog
@@ -27,6 +26,7 @@ kanban-plugin: board
 
 ## Done
 
+- [ ] # Data Processing
 
 
 

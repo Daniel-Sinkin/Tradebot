@@ -6,9 +6,6 @@ kanban-plugin: board
 
 ## Backlog
 
-- [ ] Get Data from different sources
-- [ ] Data Integrity Validation
-- [ ] Pushing Data into C++
 
 
 ## Refined Backlog
@@ -21,14 +18,16 @@ kanban-plugin: board
 
 ## Polish
 
-- [ ] ### Storing Data in DB
-	* For now only in-memory
-	* One table for ticks
-	* One table for candles
 
 
 ## Done
 
+- [ ] Pushing Data into C++
+- [ ] ### Storing Data in DB
+	* For now only in-memory
+	* One table for ticks
+	* One table for candles
+- [ ] Data Integrity Validation
 - [ ] Loading in processed Ticks and Candles
 - [ ] Build Candles from Ticks
 
