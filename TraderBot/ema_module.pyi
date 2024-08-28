@@ -1,0 +1,3 @@
+from typing import List
+
+def computeEMA(data: List[float], span: int) -> List[float]: ...
