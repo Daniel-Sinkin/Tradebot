@@ -1,12 +1,16 @@
 import logging
+import os
 import sqlite3
 from typing import TYPE_CHECKING
 
 import colorlog
 
+from .constants import _Paths
+
 if TYPE_CHECKING:
     from sqlite3.dbapi2 import _Parameters
 
+os.makedirs(_Paths.LOGS, exist_ok=True)
 
 # Define the color scheme for each log level
 log_colors = {
@@ -29,7 +33,7 @@ handler = logging.StreamHandler()
 handler.setFormatter(formatter)
 
 # File handler (without colors)
-file_handler = logging.FileHandler("app.log")
+file_handler = logging.FileHandler(_Paths.LOGS.joinpath("main.log"))
 file_handler.setFormatter(
     logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
