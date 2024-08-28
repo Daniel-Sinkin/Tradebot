@@ -13,15 +13,3 @@ def computeEMA(data: np.ndarray, lookback: int) -> np.ndarray:
     Returns:
         np.ndarray: The EMA of the input data as a NumPy array.
     """
-
-def computeEMA_unrolled(data: np.ndarray, lookback: int) -> np.ndarray:
-    """
-    Compute Exponential Moving Average (EMA) with manual loop unrolling.
-
-    Parameters:
-        data (np.ndarray): The input data for which EMA is calculated.
-        lookback (int): The lookback period for EMA calculation.
-
-    Returns:
-        np.ndarray: The EMA of the input data as a NumPy array.
-    """
