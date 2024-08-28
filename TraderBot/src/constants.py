@@ -1,27 +1,48 @@
-import datetime as dt
 import logging
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import TypeAlias
 
 logging.getLogger(__name__)
 
 
 @dataclass
-class Paths_:
-    DATA = Path("data")
+class _Paths:
+    ROOT = Path(__file__).resolve().parent
+    # Find the root of the module if the parent is not it, this assumes that there
+    # is exactly one setup.py in the entire module.
+    while not ROOT.joinpath("setup.py").exists() and ROOT != ROOT.parent:
+        ROOT = ROOT.parent
+
+    DATA = ROOT.joinpath("data")
 
 
-class Symbol(StrEnum):
+_symbol_pretty_mapping: dict[str, str] = {
+    "EURUSD": "EUR/USD",
+    "GBPUSD": "GBP/USD",
+    "USDCAD": "USD/CAD",
+    "USDCHF": "USD/CHF",
+    "USDJPY": "USD/JPY",
+    "AAPL": "Apple",
+    "TSLA": "Tesla",
+}
+
+
+class _Symbol(StrEnum):
     EURUSD = "EURUSD"
     GBPUSD = "GBPUSD"
     USDCAD = "USDCAD"
     USDCHF = "USDCHF"
     USDJPY = "USDJPY"
+    AAPL = "AAPL"
+    TSLA = "TSLA"
+
+    def pretty_format(self) -> str:
+        """Returns the pretty format of the symbol."""
+        return _symbol_pretty_mapping[self.value]
 
 
-class CandleTimeframe(StrEnum):
+class _CandleTimeframe(StrEnum):
     M1 = "1m"
     M5 = "5m"
     H1 = "1h"
@@ -29,13 +50,13 @@ class CandleTimeframe(StrEnum):
 
     def to_pandas_timeframe(self) -> str:
         match self:
-            case CandleTimeframe.M1:
+            case _CandleTimeframe.M1:
                 return "1min"
-            case CandleTimeframe.M5:
+            case _CandleTimeframe.M5:
                 return "5min"
-            case CandleTimeframe.H1:
+            case _CandleTimeframe.H1:
                 return "1h"
-            case CandleTimeframe.D1:
+            case _CandleTimeframe.D1:
                 return "1D"
             case _:
                 raise NotImplementedError(
@@ -43,15 +64,15 @@ class CandleTimeframe(StrEnum):
                 )
 
     @staticmethod
-    def from_pandas_timeframe(pandas_timeframe: str) -> "CandleTimeframe":
+    def from_pandas_timeframe(pandas_timeframe: str) -> "_CandleTimeframe":
         match pandas_timeframe:
             case "1min":
-                return CandleTimeframe.M1
+                return _CandleTimeframe.M1
             case "5min":
-                return CandleTimeframe.M5
+                return _CandleTimeframe.M5
             case "1h":
-                return CandleTimeframe.H1
+                return _CandleTimeframe.H1
             case "1D":
-                return CandleTimeframe.D1
+                return _CandleTimeframe.D1
             case _:
                 raise ValueError(f"{pandas_timeframe=} is not supported!")

@@ -5,19 +5,23 @@ from typing import Optional, cast
 
 import pandas as pd
 
-from .constants import CandleTimeframe, DBTables, Paths_, Symbol
+from .constants import _CandleTimeframe, _Paths, _Symbol
+from .logger import cursor_execute
 
 logger = logging.getLogger(__name__)
 
 
-def load_tick_pkl(symbol: Symbol) -> pd.DataFrame:
-    if not isinstance(symbol, Symbol):
+def load_tick_pkl(symbol: _Symbol) -> Optional[pd.DataFrame]:
+    if not isinstance(symbol, _Symbol):
         raise TypeError(f"{symbol=} is of {type=} but has to be of type 'Symbol'!")
 
-    assert isinstance(symbol, str)
+    filepath = _Paths.DATA.joinpath(f"ticks_{symbol}.pkl")
+    if not filepath.exists():
+        logger.info(f"{filepath=} does not exist, returning None.")
+        return None
 
-    filename = f"ticks_{symbol}.pkl"
-    ticks = cast(pd.DataFrame, pd.read_pickle(Paths_.DATA.joinpath(filename)))
+    ticks = cast(pd.DataFrame, pd.read_pickle(filepath))
+    assert isinstance(ticks, pd.DataFrame)
 
     ticks.reset_index(inplace=True)
 
@@ -30,15 +34,17 @@ def load_tick_pkl(symbol: Symbol) -> pd.DataFrame:
 def create_database_connection() -> sqlite3.Connection:
     """Create an in-memory SQLite database and return the connection."""
     conn = sqlite3.connect(":memory:")
-    print("Initialized in-memory SQLite database.")
+    logger.info("Initialized in-memory SQLite database.")
     return conn
 
 
 def create_ticks_table(conn: sqlite3.Connection) -> None:
     """Create the ticks table in the SQLite database."""
     cursor = conn.cursor()
-    cursor.execute(f"DROP TABLE IF EXISTS ticks")
-    cursor.execute(f"""
+    cursor_execute(cursor, "DROP TABLE IF EXISTS ticks")
+    cursor_execute(
+        cursor,
+        """
 CREATE TABLE IF NOT EXISTS ticks (
     symbol TEXT NOT NULL,
     ts TEXT NOT NULL,
@@ -46,38 +52,42 @@ CREATE TABLE IF NOT EXISTS ticks (
     ask REAL NOT NULL,
     PRIMARY KEY (symbol, ts)
 )
-    """)
-    print("Created ticks table.")
+        """,
+    )
+    logger.info("Created ticks table.")
 
 
 def create_candles_table(conn: sqlite3.Connection) -> None:
     """Create the ticks table in the SQLite database."""
     cursor = conn.cursor()
-    cursor.execute(f"DROP TABLE IF EXISTS candles")
-    cursor.execute(f"""
-    CREATE TABLE candles (
-        symbol TEXT NOT NULL,
-        timeframe TEXT NOT NULL,
-        ts TEXT NOT NULL,
-        open REAL NOT NULL,
-        high REAL NOT NULL,
-        low REAL NOT NULL,
-        close REAL NOT NULL,
-        volume REAL,
-        PRIMARY KEY (symbol, timeframe, ts)
+    cursor_execute(cursor, "DROP TABLE IF EXISTS candles")
+    cursor_execute(
+        cursor,
+        """
+CREATE TABLE candles (
+    symbol TEXT NOT NULL,
+    timeframe TEXT NOT NULL,
+    ts TEXT NOT NULL,
+    open REAL NOT NULL,
+    high REAL NOT NULL,
+    low REAL NOT NULL,
+    close REAL NOT NULL,
+    volume REAL,
+    PRIMARY KEY (symbol, timeframe, ts)
+)
+        """,
     )
-    """)
-    print("Createotimeframe candles table.")
+    logger.info("Created candles table.")
 
 
 def insert_ticks_into_db(ticks: pd.DataFrame, conn: sqlite3.Connection) -> None:
     """Insert tick data into the ticks table in the SQLite database."""
     ticks.to_sql("ticks", conn, if_exists="append", index=False)
-    print("Inserted ticks data into the database.")
+    logger.info("Inserted ticks data into the database.")
 
 
 def create_candles_from_ticks(
-    ticks: pd.DataFrame, timeframe: CandleTimeframe
+    ticks: pd.DataFrame, timeframe: _CandleTimeframe
 ) -> pd.DataFrame:
     """
     Create OHLC candles for a specific timeframe and insert them into the database.
@@ -133,52 +143,50 @@ def create_connection_and_fill_with_tick_pkl(
     create_ticks_table(conn)
     create_candles_table(conn)
 
-    for i, symbol in enumerate(Symbol):
-        print(f"{i + 1}/{len(Symbol)}.", symbol)
+    for i, symbol in enumerate(_Symbol):
+        print(f"{i + 1}/{len(_Symbol)}.", symbol.pretty_format())
         print("Loading Ticks")
         ticks = load_tick_pkl(symbol=symbol)
+        if ticks is None:
+            continue
 
         print("Pushing Ticks")
-        ticks.to_sql(
-            "ticks",
-            conn,
-            if_exists="append",
-        )
-
+        ticks.to_sql("ticks", conn, if_exists="append", index=False)
 
         print("Creating and Pushing Candles")
-        for j, ctf in enumerate(CandleTimeframe):
-            print(f"\t{j + 1}/{len(CandleTimeframe)}.", ctf)
+        for j, ctf in enumerate(_CandleTimeframe):
+            print(f"\t{j + 1}/{len(_CandleTimeframe)}.", ctf)
             candles = create_candles_from_ticks(ticks, ctf)
             candles.to_sql("candles", conn, if_exists="append", index=False)
         break
 
     conn.commit()
-    print("Transaction committed.")
 
-    with sqlite3.connect(Paths_.DATA.joinpath("database_backup.db")) as disc_conn:
+    db_path = _Paths.DATA.joinpath("database_backup.db")
+
+    logger.debug("Creating local backup of the database at '%s'", db_path)
+    disc_conn = sqlite3.connect(db_path)
+    try:
         conn.backup(disc_conn)
+    finally:
+        disc_conn.close()
 
     return conn
 
-def get
-
 
 def main() -> None:
-    filepath_db = Paths_.DATA.joinpath("database_backup.db")
+    filepath_db = _Paths.DATA.joinpath("database_backup.db")
     conn = create_connection_and_fill_with_tick_pkl(filepath_db, load_backup=False)
 
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM ticks LIMIT 5")
+    cursor_execute(cursor, "SELECT * FROM ticks LIMIT 5")
     ticks_sample = cursor.fetchall()
     print("Sample data from ticks table:")
     for row in ticks_sample:
         print(row)
 
-    cursor.execute(f"SELECT * FROM candles LIMIT 5")
+    cursor_execute(cursor, "SELECT * FROM candles LIMIT 5")
     candles_sample = cursor.fetchall()
     print("Sample data from candles table:")
     for row in candles_sample:
         print(row)
-
-    print(1)

@@ -1,10 +1,6 @@
 import logging
-import sys
-from pathlib import Path
 
-from src.data_manager import main as dm_main
-
-sys.path.append(str(Path(__file__).resolve().parent.joinpath("src")))
+from TraderBot.src.data_manager import main as dm_main
 
 logger = logging.getLogger(__name__)
 
