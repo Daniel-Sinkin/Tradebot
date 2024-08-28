@@ -9,8 +9,12 @@ setup(
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     url="https://github.com/Daniel-Sinkin/Tradebot",
-    packages=find_packages(),
+    packages=find_packages(where="."),  # Assuming no src directory
     include_package_data=True,
+    package_data={
+        # Include any .so files in the TraderBot package
+        "TraderBot": ["*.so"],
+    },
     install_requires=[
         "pandas>=1.0.0",
         "numpy>=1.19.0",
