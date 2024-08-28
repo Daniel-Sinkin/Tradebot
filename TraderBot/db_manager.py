@@ -8,7 +8,7 @@ from typing import Optional
 from .constants import _Paths
 from .util import format_connection
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 class DatabaseManager:
