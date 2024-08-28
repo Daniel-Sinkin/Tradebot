@@ -1,9 +1,7 @@
 import logging
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import StrEnum, auto
 from pathlib import Path
-
-logging.getLogger(__name__)
 
 
 @dataclass
@@ -15,7 +13,10 @@ class _Paths:
         ROOT = ROOT.parent
 
     DATA = ROOT.joinpath("data")
+    LOGS = ROOT.joinpath("logs")
 
+
+logging.getLogger(__name__)
 
 _symbol_pretty_mapping: dict[str, str] = {
     "EURUSD": "EUR/USD",
@@ -23,8 +24,6 @@ _symbol_pretty_mapping: dict[str, str] = {
     "USDCAD": "USD/CAD",
     "USDCHF": "USD/CHF",
     "USDJPY": "USD/JPY",
-    "AAPL": "Apple",
-    "TSLA": "Tesla",
 }
 
 
@@ -34,8 +33,6 @@ class _Symbol(StrEnum):
     USDCAD = "USDCAD"
     USDCHF = "USDCHF"
     USDJPY = "USDJPY"
-    AAPL = "AAPL"
-    TSLA = "TSLA"
 
     def pretty_format(self) -> str:
         """Returns the pretty format of the symbol."""

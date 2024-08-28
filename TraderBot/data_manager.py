@@ -1,14 +1,167 @@
+import datetime as dt
 import logging
 import sqlite3
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional, cast
 
+import numpy as np
 import pandas as pd
 
 from .constants import _CandleTimeframe, _Paths, _Symbol
+from .db_manager import DatabaseManager
 from .logger import cursor_execute
 
 logger = logging.getLogger(__name__)
+
+
+class DataManager(ABC):
+    @abstractmethod
+    def _get_candles(
+        self,
+        symbol: _Symbol,
+        timeframe: _CandleTimeframe,
+        ts_from: dt.datetime,
+        ts_until: Optional[dt.datetime] = None,
+    ) -> Optional[pd.DataFrame]: ...
+
+    def get_candles(
+        self,
+        symbols: _Symbol | list[_Symbol],
+        timeframes: _CandleTimeframe | list[_CandleTimeframe],
+        ts_from: dt.datetime,
+        ts_until: Optional[dt.datetime] = None,
+    ) -> Optional[dict[_CandleTimeframe, pd.DataFrame]]:
+        if not isinstance(symbols, list):
+            symbols = [symbols]
+        if not isinstance(timeframes, list):
+            timeframes = [timeframes]
+
+        df_list = [
+            self._get_candles(symbol, ctf, ts_from, ts_until)
+            for symbol in symbols
+            for ctf in timeframes
+        ]
+        if any([df is None for df in df_list]):
+            logger.warning("At least one dataframe is None, returning None.")
+            return None
+        return pd.concat([df for df in df_list if not df.empty])
+
+    @staticmethod
+    def validate_candles(candles: pd.DataFrame) -> None:
+        assert isinstance(candles, pd.DataFrame)
+        ohlc = ["open", "high", "low", "close"]
+        assert all(c in candles.columns for c in ohlc)
+
+        assert (candles[ohlc] > 0).all().all()
+        assert (candles.high >= candles[["open", "low", "close"]].max(axis=1)).all()
+        assert (candles.low <= candles[["open", "high", "close"]].min(axis=1)).all()
+
+        assert candles.columns.str.islower().all()
+        for c in ohlc:
+            assert candles[c].dtype == np.float64
+
+
+class PickleDataManager(DataManager):
+    def get_ticks(
+        self,
+        symbol: _Symbol,
+        ts_from: dt.datetime,
+        ts_until: Optional[dt.datetime] = None,
+    ) -> Optional[pd.DataFrame]:
+        if not isinstance(symbol, _Symbol):
+            raise TypeError(f"{symbol=} is of {type=} but has to be of type 'Symbol'!")
+
+        filepath = _Paths.DATA.joinpath(f"ticks_{symbol}.pkl")
+        if not filepath.exists():
+            logger.info(f"{filepath=} does not exist, returning None.")
+            return None
+
+        ticks = cast(pd.DataFrame, pd.read_pickle(filepath))
+        assert isinstance(ticks, pd.DataFrame)
+
+        ticks.reset_index(inplace=True)
+
+        ticks["symbol"] = symbol.value
+
+        ticks = ticks[["symbol", "ts", "bid", "ask"]]
+        return ticks
+
+    def _generate_candles_from_ticks(
+        self,
+        symbol: _Symbol,
+        timeframe: _CandleTimeframe,
+        ts_from: dt.datetime,
+        ts_until: Optional[dt.datetime] = None,
+    ) -> Optional[pd.DataFrame]:
+        pd_tf = timeframe.to_pandas_timeframe()
+
+        if ts_until is None:
+            ts_until = dt.datetime.now(tz=dt.timezone.utc)
+
+        ts_from: dt.datetime = pd.Timestamp(ts_from).ceil(pd_tf).to_pydatetime()
+        ts_until: dt.datetime = pd.Timestamp(ts_until).floor(pd_tf).to_pydatetime()
+
+        ticks = self.get_ticks(symbol, ts_from, ts_until)
+        if ticks is None:
+            logger.info("Could not find the ticks, returning None.")
+            return None
+
+        if not isinstance(ticks, pd.DataFrame):
+            raise TypeError("ticks has to be a DataFrame.")
+        if ticks.empty:
+            raise ValueError("No ticks passed!")
+
+        candles = (
+            ticks.set_index("ts")
+            .resample(timeframe.to_pandas_timeframe())
+            .agg(
+                open=("bid", "first"),
+                high=("bid", "max"),
+                low=("bid", "min"),
+                close=("bid", "last"),
+                volume=("bid", "count"),
+            )
+            .reset_index()
+            .dropna()
+        )
+
+        candles["symbol"] = ticks.iloc[0]["symbol"]
+        candles["timeframe"] = timeframe.value
+
+        candles = candles[
+            ["symbol", "timeframe", "ts", "open", "high", "low", "close", "volume"]
+        ]
+
+        return candles
+
+    def _get_candles(
+        self,
+        symbol: _Symbol,
+        timeframe: _CandleTimeframe,
+        ts_from: dt.datetime,
+        ts_until: Optional[dt.datetime] = None,
+        validate_candles: bool = True,
+    ) -> Optional[pd.DataFrame]:
+        candle_fp = _Paths.DATA.joinpath(f"candles_{symbol}_{timeframe}.pkl")
+        if not candle_fp.exists():
+            logger.info(
+                f"{candle_fp=} does not exist, trying to build the candles from ticks."
+            )
+            candles = self._generate_candles_from_ticks(
+                symbol=symbol, timeframe=timeframe, ts_from=ts_from, ts_until=ts_until
+            )
+            if candles is None:
+                logger.info("Could not build candles.")
+                return None
+            candles.to_pickle(candle_fp)
+            if not candle_fp.exists():
+                raise RuntimeError("Could not save candles after building.")
+
+        candles = cast(pd.DataFrame, pd.read_pickle(candle_fp))
+        if validate_candles:
+            DataManager.validate_candles(candles)
+        return candles
 
 
 def load_tick_pkl(symbol: _Symbol) -> Optional[pd.DataFrame]:
@@ -175,18 +328,13 @@ def create_connection_and_fill_with_tick_pkl(
 
 
 def main() -> None:
-    filepath_db = _Paths.DATA.joinpath("database_backup.db")
-    conn = create_connection_and_fill_with_tick_pkl(filepath_db, load_backup=False)
+    candles_nested_dict = PickleDataManager().get_candles(
+        symbols=list(_Symbol),
+        timeframes=list(_CandleTimeframe),
+        ts_from=dt.datetime(2024, 1, 1, tzinfo=dt.timezone.utc),
+    )
+    with DatabaseManager().manage_connection() as conn:
+        candles_nested_dict.to_sql("candles", conn, if_exists="append", index=False)
 
-    cursor = conn.cursor()
-    cursor_execute(cursor, "SELECT * FROM ticks LIMIT 5")
-    ticks_sample = cursor.fetchall()
-    print("Sample data from ticks table:")
-    for row in ticks_sample:
-        print(row)
-
-    cursor_execute(cursor, "SELECT * FROM candles LIMIT 5")
-    candles_sample = cursor.fetchall()
-    print("Sample data from candles table:")
-    for row in candles_sample:
-        print(row)
+        candle_df_from_sql = pd.read_sql("SELECT * FROM candles", conn)
+        logger.info("\n%s", candle_df_from_sql.sample(n=10))
