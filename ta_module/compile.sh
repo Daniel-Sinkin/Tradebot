@@ -9,7 +9,7 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
 # Moves the output one up and into the traderbot folder
 OUTPUT_DIR="${SCRIPT_DIR}/../traderbot"
 
-SOURCE_FILE="${SCRIPT_DIR}/traderlib.cpp"
+SOURCE_FILE="${SCRIPT_DIR}/ta_module.cpp"
 
 # Update the module name in the output file
 c++ -O3 -Wall -shared -std=c++11 -fPIC \

@@ -3,7 +3,39 @@
 #include <pybind11/numpy.h>
 #include <vector>
 #include <stdexcept>
-#include <algorithm> // For std::max and std::min
+#include <algorithm>
+
+pybind11::array_t<float> computeEMA(const pybind11::array_t<float> &data_array, int lookback)
+{
+    if (lookback <= 0)
+    {
+        throw std::invalid_argument("Lookback must be a positive integer.");
+    }
+
+    pybind11::buffer_info buf = data_array.request();
+
+    if (buf.ndim != 1)
+    {
+        throw std::runtime_error("Input data should be a 1D array.");
+    }
+
+    const float *data_ptr = static_cast<const float *>(buf.ptr);
+    size_t size = buf.size;
+
+    pybind11::array_t<float> ema(size);
+    auto ema_buf = ema.request();
+    float *ema_ptr = static_cast<float *>(ema_buf.ptr);
+
+    float multiplier = 2.0f / (lookback + 1);
+    ema_ptr[0] = data_ptr[0]; // Initialize the first value of EMA
+
+    for (size_t i = 1; i < size; ++i)
+    {
+        ema_ptr[i] = ((data_ptr[i] - ema_ptr[i - 1]) * multiplier) + ema_ptr[i - 1];
+    }
+
+    return ema;
+}
 
 // Function to compute Stochastic Oscillator
 pybind11::array_t<float> computeStochasticOscillator(const pybind11::array_t<float> &close_prices,
