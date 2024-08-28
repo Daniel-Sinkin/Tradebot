@@ -165,4 +165,6 @@ data/*
 
 .vscode/*
 
-Obsidan/.obsidian/*
+Obsidian/.obsidian
+
+*.DS_Store  
