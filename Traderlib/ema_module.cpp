@@ -4,6 +4,7 @@
 #include <vector>
 #include <stdexcept>
 
+// Function to compute EMA
 pybind11::array_t<float> computeEMA(const pybind11::array_t<float> &data_array, int lookback)
 {
     if (lookback <= 0)
@@ -42,4 +43,12 @@ pybind11::array_t<float> computeEMA(const pybind11::array_t<float> &data_array, 
     }
 
     return ema;
+}
+
+// Define the module
+PYBIND11_MODULE(ema_module, m)
+{
+    m.doc() = "Module for computing Exponential Moving Average (EMA)";
+    m.def("computeEMA", &computeEMA, "Compute Exponential Moving Average (EMA)",
+          pybind11::arg("data_array"), pybind11::arg("lookback"));
 }
