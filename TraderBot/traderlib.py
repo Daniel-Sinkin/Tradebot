@@ -12,6 +12,8 @@ def ema_filter(data: np.ndarray, lookback: int):
     ```
 
     Initializes the filter the same way the pandas variant does.
+
+    Deprecated for the handrolled `computeEMA` c++ function.
     """
     alpha = 2 / (lookback + 1)
     b = [alpha]
