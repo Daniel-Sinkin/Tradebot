@@ -5,9 +5,8 @@ import numpy as np
 
 from traderbot.constants import _CandleTimeframe, _Symbol
 from traderbot.data_manager import DatabaseDataManager
-from traderbot.data_manager import main as dm_main
+from traderbot.data_manager import fill_db_with_pkl as dm_main
 from traderbot.db_manager import DatabaseManager
-from traderbot.ema_module import computeEMA
 from traderbot.logger import setup_logger
 
 
@@ -28,4 +27,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    fill_db()
+    # main()

@@ -215,11 +215,11 @@ WHERE symbol = '{symbol}' AND timeframe = '{timeframe}' AND ts BETWEEN '{ts_from
         return candles
 
 
-def main() -> None:
+def fill_db_with_pkl() -> None:
     with DatabaseManager().manage_connection() as conn:
         PickleDataManager().push_candles_to_sql(
             conn=conn,
             symbols=list(_Symbol),
             timeframes=list(_CandleTimeframe),
-            ts_from=dt.datetime(2024, 1, 1, tzinfo=dt.timezone.utc),
+            ts_from=dt.datetime(2020, 1, 1, tzinfo=dt.timezone.utc),
         )
