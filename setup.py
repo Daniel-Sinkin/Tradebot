@@ -9,8 +9,7 @@ setup(
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     url="https://github.com/Daniel-Sinkin/Tradebot",
-    packages=find_packages(where="src"),
-    package_dir={"": "src"},
+    packages=find_packages(),
     include_package_data=True,
     install_requires=[
         "pandas>=1.0.0",
