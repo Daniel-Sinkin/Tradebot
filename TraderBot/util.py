@@ -3,57 +3,10 @@ from typing import Optional, TypeVar
 import numpy as np
 import pandas as pd
 
-
-def build_candle(
-    prices: pd.Series,
-    timeframe: str,
-    include_tick_volumes: bool = False,
-    dropna: bool = True,
-) -> pd.DataFrame:
-    """
-    Constructs a DataFrame of OHLC (Open, High, Low, Close) candles from price data.
-
-    ### Parameters:
-    * prices
-        * A pandas Series of price data, indexed by datetime.
-    * timeframe
-        * A string representing the resampling timeframe (e.g., '1T' for 1 minute, '1H' for 1 hour).
-    * volumes
-        * Either a single float representing the volume for each period or a pandas Series of volumes, indexed by datetime.
-        * If None, volume data will not be included.
-    * include_tick_volumes
-        * If True, includes a column for tick volumes (i.e., the count of trades per resampled period). Default is False.
-    * dropna
-        * If True, drops any NaN values from the resulting DataFrame. Default is True.
-
-    ### Returns:
-    * A DataFrame with columns for Open, High, Low, Close prices, and optionally Volume and TickVolume.
-
-    ### Raises:
-    * TypeError
-        * If the provided volumes argument is neither a float nor a pd.Series.
-    """
-    resampled = prices.resample(timeframe)
-    candles = resampled.ohlc()
-
-    candles.rename(
-        columns={"open": "Open", "high": "High", "low": "Low", "close": "Close"},
-        inplace=True,
-    )
-
-    if include_tick_volumes:
-        candles["TickVolume"] = resampled.count()
-
-    if dropna:
-        candles.dropna(inplace=True)
-
-    return candles
-
-
 T = TypeVar("T", int, float, pd.Timestamp, str)
 
 
-def slice_sorted(  # pylint: disable=too-many-arguments
+def slice_sorted(
     df: pd.DataFrame,
     key: str,
     left: T | None = None,

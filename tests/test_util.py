@@ -5,51 +5,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.extra.pandas import column, data_frames, range_indexes
 
-from src_old.util import build_candle, sample_eps_ball, slice_sorted
-
-
-def test_build_candle_basic():
-    prices = pd.Series(
-        [100, 102, 101, 103, 102],
-        index=pd.date_range("2023-01-01 09:00", periods=5, freq="min"),
-    )
-    result = build_candle(prices, "2min")
-    expected_columns = ["Open", "High", "Low", "Close"]
-    assert list(result.columns) == expected_columns
-    assert len(result) == 3
-
-
-def test_build_candle_with_volumes():
-    prices = pd.Series(
-        [100, 102, 101, 103, 102],
-        index=pd.date_range("2023-01-01 09:00", periods=5, freq="min"),
-    )
-    volumes = pd.Series(
-        [1000, 1500, 1200, 1800, 1700],
-        index=pd.date_range("2023-01-01 09:00", periods=5, freq="min"),
-    )
-    result = build_candle(prices, "2min", volumes=volumes)
-    assert "Volume" in result.columns
-    assert len(result) == 3
-
-
-def test_build_candle_with_invalid_volumes():
-    prices = pd.Series(
-        [100, 102, 101, 103, 102],
-        index=pd.date_range("2023-01-01 09:00", periods=5, freq="min"),
-    )
-    with pytest.raises(TypeError):
-        build_candle(prices, "2min", volumes=[1000, 1500, 1200])
-
-
-def test_build_candle_with_tick_volumes():
-    prices = pd.Series(
-        [100, 102, 101, 103, 102],
-        index=pd.date_range("2023-01-01 09:00", periods=5, freq="min"),
-    )
-    result = build_candle(prices, "2min", include_tick_volumes=True)
-    assert "TickVolume" in result.columns
-    assert len(result) == 3
+from TraderBot.util import sample_eps_ball, slice_sorted
 
 
 def test_slice_sorted_basic_case():

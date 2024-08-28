@@ -1,6 +1,6 @@
 import logging
 
-from TraderBot.src.data_manager import main as dm_main
+from TraderBot.data_manager import main as dm_main
 
 logger = logging.getLogger(__name__)
 
