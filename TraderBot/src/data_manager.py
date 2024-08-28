@@ -1,4 +1,3 @@
-import datetime as dt
 import sqlite3
 from pathlib import Path
 from typing import Optional, cast
