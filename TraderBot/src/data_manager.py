@@ -1,3 +1,4 @@
+import logging
 import sqlite3
 from pathlib import Path
 from typing import Optional, cast
@@ -5,6 +6,8 @@ from typing import Optional, cast
 import pandas as pd
 
 from .constants import CandleTimeframe, DBTables, Paths_, Symbol
+
+logger = logging.getLogger(__name__)
 
 
 def load_tick_pkl(symbol: Symbol) -> pd.DataFrame:
@@ -34,13 +37,14 @@ def create_database_connection() -> sqlite3.Connection:
 def create_ticks_table(conn: sqlite3.Connection) -> None:
     """Create the ticks table in the SQLite database."""
     cursor = conn.cursor()
+    cursor.execute(f"DROP TABLE IF EXISTS ticks")
     cursor.execute(f"""
-CREATE TABLE IF NOT EXISTS {DBTables.candles} (
+CREATE TABLE IF NOT EXISTS ticks (
     symbol TEXT NOT NULL,
-    timestamp TEXT NOT NULL,
+    ts TEXT NOT NULL,
     bid REAL NOT NULL,
     ask REAL NOT NULL,
-    PRIMARY KEY (symbol, timestamp)
+    PRIMARY KEY (symbol, ts)
 )
     """)
     print("Created ticks table.")
@@ -49,25 +53,26 @@ CREATE TABLE IF NOT EXISTS {DBTables.candles} (
 def create_candles_table(conn: sqlite3.Connection) -> None:
     """Create the ticks table in the SQLite database."""
     cursor = conn.cursor()
+    cursor.execute(f"DROP TABLE IF EXISTS candles")
     cursor.execute(f"""
-    CREATE TABLE IF NOT EXISTS {DBTables.candles} (
-        id INTEGER PRIMARY KEY,
+    CREATE TABLE candles (
         symbol TEXT NOT NULL,
         timeframe TEXT NOT NULL,
+        ts TEXT NOT NULL,
         open REAL NOT NULL,
         high REAL NOT NULL,
         low REAL NOT NULL,
         close REAL NOT NULL,
         volume REAL,
-        timestamp TEXT NOT NULL
+        PRIMARY KEY (symbol, timeframe, ts)
     )
     """)
-    print("Created candles table.")
+    print("Createotimeframe candles table.")
 
 
 def insert_ticks_into_db(ticks: pd.DataFrame, conn: sqlite3.Connection) -> None:
     """Insert tick data into the ticks table in the SQLite database."""
-    ticks.to_sql("ticks", conn, if_exists="append", index=True, index_label="timestamp")
+    ticks.to_sql("ticks", conn, if_exists="append", index=False)
     print("Inserted ticks data into the database.")
 
 
@@ -96,6 +101,7 @@ def create_candles_from_ticks(
             volume=("bid", "count"),
         )
         .reset_index()
+        .dropna()
     )
 
     candles["symbol"] = ticks.iloc[0]["symbol"]
@@ -124,29 +130,27 @@ def create_connection_and_fill_with_tick_pkl(
         elif backup_location.exists():
             return sqlite3.connect(backup_location)
 
+    create_ticks_table(conn)
+    create_candles_table(conn)
+
     for i, symbol in enumerate(Symbol):
         print(f"{i + 1}/{len(Symbol)}.", symbol)
         print("Loading Ticks")
         ticks = load_tick_pkl(symbol=symbol)
 
         print("Pushing Ticks")
-        ticks.reset_index(inplace=False).to_sql(
+        ticks.to_sql(
             "ticks",
             conn,
-            if_exists="replace",
+            if_exists="append",
         )
+
 
         print("Creating and Pushing Candles")
         for j, ctf in enumerate(CandleTimeframe):
             print(f"\t{j + 1}/{len(CandleTimeframe)}.", ctf)
             candles = create_candles_from_ticks(ticks, ctf)
-            candles.to_sql(
-                DBTables.candles,
-                conn,
-                if_exists="append",
-                index=True,
-                index_label="ts",
-            )
+            candles.to_sql("candles", conn, if_exists="append", index=False)
         break
 
     conn.commit()
@@ -156,6 +160,8 @@ def create_connection_and_fill_with_tick_pkl(
         conn.backup(disc_conn)
 
     return conn
+
+def get
 
 
 def main() -> None:
@@ -169,7 +175,7 @@ def main() -> None:
     for row in ticks_sample:
         print(row)
 
-    cursor.execute(f"SELECT * FROM {DBTables.candles} LIMIT 5")
+    cursor.execute(f"SELECT * FROM candles LIMIT 5")
     candles_sample = cursor.fetchall()
     print("Sample data from candles table:")
     for row in candles_sample:

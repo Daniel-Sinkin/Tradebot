@@ -1,8 +1,11 @@
 import datetime as dt
+import logging
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import TypeAlias
+
+logging.getLogger(__name__)
 
 
 @dataclass
@@ -52,9 +55,3 @@ class CandleTimeframe(StrEnum):
                 return CandleTimeframe.D1
             case _:
                 raise ValueError(f"{pandas_timeframe=} is not supported!")
-
-
-@dataclass
-class DBTables:
-    ticks = "ticks"
-    candles = "candles"
