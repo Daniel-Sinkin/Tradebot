@@ -3,7 +3,7 @@ import datetime as dt
 import matplotlib.pyplot as plt
 import numpy as np
 
-from src.util import build_candle, sample_eps_ball
+from src_old.util import build_candle, sample_eps_ball
 
 
 def main() -> None:

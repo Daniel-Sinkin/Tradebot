@@ -5,7 +5,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 from hypothesis.extra.pandas import column, data_frames, range_indexes
 
-from src.util import build_candle, sample_eps_ball, slice_sorted
+from src_old.util import build_candle, sample_eps_ball, slice_sorted
 
 
 def test_build_candle_basic():
