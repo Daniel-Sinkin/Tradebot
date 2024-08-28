@@ -3,7 +3,7 @@ import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 from threading import Lock
-from typing import Optional
+from typing import Iterator, Optional
 
 from .constants import _Paths
 from .util import format_connection
@@ -48,7 +48,7 @@ class DatabaseManager:
             )
         return self.connection
 
-    def close(self):
+    def close(self) -> None:
         if self.connection:
             logger.info(
                 "Trying to close connection to %s.",
@@ -59,7 +59,8 @@ class DatabaseManager:
             self.connection = None
 
     @contextmanager
-    def manage_connection(self):
+    # Generator[sqlite3.Connection, Any, None] prolly would be more accurate type hint, but less clear
+    def manage_connection(self) -> Iterator[sqlite3.Connection]:
         try:
             conn = self.connect()
             yield conn

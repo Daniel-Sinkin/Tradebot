@@ -60,7 +60,7 @@ class DataManager(ABC):
         candles = self.get_candles(symbols, timeframes, ts_from, ts_until)
         if candles is None:
             logger.warning("No candles found, not pushing anything to sql.")
-        candles.to_sql("candles", conn, index=False)
+        candles.to_sql("candles", conn, index=False, if_exists="append")
 
     @staticmethod
     def validate_candles(candles: pd.DataFrame) -> None:
@@ -71,6 +71,8 @@ class DataManager(ABC):
         assert (candles[ohlc] > 0).all().all()
         assert (candles.high >= candles[["open", "low", "close"]].max(axis=1)).all()
         assert (candles.low <= candles[["open", "high", "close"]].min(axis=1)).all()
+
+        # TODO: Add validation that 'ts' are datetimes/timestamps not str/objects
 
         assert candles.columns.str.islower().all()
         for c in ohlc:
@@ -207,6 +209,8 @@ WHERE symbol = '{symbol}' AND timeframe = '{timeframe}' AND ts BETWEEN '{ts_from
         if candles.empty:
             logger.info("No candles found in the database for the given parameters.")
             return None
+        candles["ts"] = pd.to_datetime(candles["ts"])
+
         DataManager.validate_candles(candles)
         return candles
 
