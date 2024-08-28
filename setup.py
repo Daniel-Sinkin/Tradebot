@@ -1,7 +1,7 @@
 from setuptools import find_packages, setup
 
 setup(
-    name="TraderBot",
+    name="traderbot",
     version="0.1.0",
     author="Daniel Sinkin",
     author_email="danielsinkin97@gmail.com",
@@ -10,12 +10,12 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/Daniel-Sinkin/Tradebot",
     packages=find_packages(
-        include=["TraderBot", "TraderBot.*"]
+        include=["traderbot", "traderbot.*"]
     ),  # Include only TraderBot package
     include_package_data=True,
     package_data={
         # Include any .so files in the TraderBot package
-        "TraderBot": ["*.so"],
+        "traderbot": ["*.so"],
     },
     install_requires=[
         "pandas>=1.0.0",
