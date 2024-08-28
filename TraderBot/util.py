@@ -1,3 +1,4 @@
+import sqlite3
 from typing import Optional, TypeVar
 
 import numpy as np
@@ -121,3 +122,13 @@ def sample_eps_ball(
     samples += center
 
     return samples
+
+
+@staticmethod
+def format_connection(conn: sqlite3.Connection) -> str:
+    """Return a pretty formatted string representation of the connection."""
+    db_name = conn.execute("PRAGMA database_list").fetchall()[0][2]
+    connection_id = id(conn)
+    in_memory = db_name == ":memory:"
+    conn_type = "In-Memory" if in_memory else "File-Based"
+    return f"[Connection ID: {connection_id}, Database: {db_name}, Type: {conn_type}]"
